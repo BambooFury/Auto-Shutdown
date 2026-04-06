@@ -1,0 +1,24 @@
+﻿{
+"name": "auto-shutdown",
+"version": "1.0.0",
+"type": "module",
+"description": "Automatically shuts down your PC after Steam game downloads are complete.",
+"private": true,
+"author": "BambooFury",
+"license": "MIT",
+"scripts": {
+"dev": "millennium-ttc --build dev",
+"watch": "millennium-ttc --build dev --watch",
+"build": "millennium-ttc --build prod"
+},
+"dependencies": {
+"@steambrew/api": "^5.5.3",
+"@steambrew/client": "^5.8.4",
+"@steambrew/ttc": "^2.8.7",
+"@steambrew/webkit": "^5.5.3"
+},
+"devDependencies": {
+"@types/react": "^18.2.0",
+"typescript": "^5.0.0"
+}
+}

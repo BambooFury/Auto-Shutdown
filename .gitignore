@@ -1,0 +1,7 @@
+node_modules/
+.millennium/
+pnpm-lock.yaml
+*.log
+.vscode/
+*.zip
+.github/workflows
