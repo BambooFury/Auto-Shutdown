@@ -5,3 +5,5 @@ pnpm-lock.yaml
 .vscode/
 *.zip
 .github/workflows
+millennium-plugins/
+PluginDatabase/

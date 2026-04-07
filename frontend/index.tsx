@@ -12,12 +12,13 @@ function loadSettings() {
     if (typeof s.delay === 'number') delay = s.delay;
     if (typeof s.tabColor === 'string') tabColor = s.tabColor;
     if (typeof s.showOverlay === 'boolean') showOverlay = s.showOverlay;
+    if (s.panelSide === 'left' || s.panelSide === 'right') panelSide = s.panelSide;
   } catch { /* ignore */ }
 }
 
 function saveSettings() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ enabled, delay, tabColor, showOverlay }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ enabled, delay, tabColor, showOverlay, panelSide }));
   } catch { /* ignore */ }
 }
 
@@ -30,8 +31,9 @@ const DELAY_OPTIONS = [1, 3, 5, 10];
 
 let enabled = true;
 let delay = 1;
-let tabColor = 'gray'; // 'gray' | 'black' | 'white' | 'blue' | 'red'
+let tabColor = 'gray';
 let showOverlay = true;
+let panelSide: 'left' | 'right' = 'left';
 let pluginState: PluginState = 'idle';
 let countdownSeconds = 0;
 let countdownInterval: ReturnType<typeof setInterval> | null = null;
@@ -262,6 +264,7 @@ const AutoShutdownSettings = () => {
   const [color, setColor] = useState(tabColor);
   const [ddOpen, setDdOpen] = useState(false);
   const [overlay, setOverlay] = useState(showOverlay);
+  const [side, setSide] = useState(panelSide);
 
   const handleColor = (id: string) => {
     tabColor = id;
@@ -273,6 +276,12 @@ const AutoShutdownSettings = () => {
   const toggleOverlay = () => {
     showOverlay = !showOverlay;
     setOverlay(showOverlay);
+    saveSettings();
+  };
+
+  const toggleSide = (s: 'left' | 'right') => {
+    panelSide = s;
+    setSide(s);
     saveSettings();
   };
 
@@ -317,6 +326,24 @@ const AutoShutdownSettings = () => {
         )}
       </div>
     </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 4 }}>
+        <div>
+          <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: 500 }}>Panel Side</div>
+          <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 3 }}>Side the panel slides out from</div>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {(['left', 'right'] as const).map(s => (
+            <button key={s} onClick={() => toggleSide(s)} style={{
+              padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
+              fontSize: 12, fontWeight: side === s ? 700 : 400,
+              background: side === s ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.07)',
+              color: side === s ? '#fff' : 'rgba(255,255,255,0.5)',
+              transition: 'all 0.15s',
+            }}>{s === 'left' ? '← Left' : 'Right →'}</button>
+          ))}
+        </div>
+      </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 4 }}>
         <div>
@@ -372,32 +399,44 @@ const AutoShutdownWidget = () => {
 
   const { appId, appName, overallPercent, iconUrl } = dlInfo;
   const tc = getTabColor();
+  const isLeft = panelSide === 'left';
 
   return (
     <>
-      {/* Tab trigger — moves to right edge of panel when open */}
+      {/* Tab trigger — moves to edge of panel when open */}
       <button onClick={() => setOpen(o => !o)} style={{
         position: 'fixed', top: '50%',
-        left: open ? 360 : 0,
+        ...(isLeft
+          ? { left: open ? 360 : 0 }
+          : { right: open ? 360 : 0 }),
         transform: 'translateY(-50%)',
         width: 20, height: 48,
-        borderRadius: '0 6px 6px 0',
+        borderRadius: isLeft ? '0 6px 6px 0' : '6px 0 0 6px',
         border: 'none', cursor: 'pointer', zIndex: 1001,
         background: open ? tc.bgHover : tc.bg,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'left 0.25s cubic-bezier(0.4,0,0.2,1), background 0.15s',
+        transition: `${isLeft ? 'left' : 'right'} 0.25s cubic-bezier(0.4,0,0.2,1), background 0.15s`,
       }}>
         <svg width="10" height="14" viewBox="0 0 10 14" fill="none">
-          <polyline points={open ? "7,2 3,7 7,12" : "3,2 7,7 3,12"} stroke={tc.arrow} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <polyline
+            points={
+              isLeft
+                ? (open ? "7,2 3,7 7,12" : "3,2 7,7 3,12")
+                : (open ? "3,2 7,7 3,12" : "7,2 3,7 7,12")
+            }
+            stroke={tc.arrow} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
 
-      {/* Slide-in panel from the left */}
+      {/* Slide-in panel */}
       <div style={{
-        position: 'fixed', top: '50%', left: 20, transform: `translateY(-50%) translateX(${open ? '0' : '-110%'})`,
+        position: 'fixed', top: '50%',
+        ...(isLeft ? { left: 20 } : { right: 20 }),
+        transform: `translateY(-50%) translateX(${open ? '0' : (isLeft ? '-110%' : '110%')})`,
         zIndex: 999, width: 340,
         background: '#0d0d0d',
-        border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0 12px 12px 0',
+        border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: isLeft ? '0 12px 12px 0' : '12px 0 0 12px',
         overflow: 'hidden',
         transition: 'transform 0.25s cubic-bezier(0.4,0,0.2,1)',
         pointerEvents: open ? 'all' : 'none',
@@ -427,7 +466,7 @@ const AutoShutdownWidget = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <img
                       src={iconUrl ?? `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/capsule_sm_120.jpg`}
-                      style={{ width: 40, height: 30, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }}
+                      style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'contain', flexShrink: 0, background: 'rgba(255,255,255,0.05)' }}
                       onError={(e: any) => {
                         const t = e.target as HTMLImageElement;
                         if (t.src.includes('capsule_sm_120')) {
