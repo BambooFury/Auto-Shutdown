@@ -10,12 +10,14 @@ function loadSettings() {
     const s = JSON.parse(raw);
     if (typeof s.enabled === 'boolean') enabled = s.enabled;
     if (typeof s.delay === 'number') delay = s.delay;
+    if (typeof s.tabColor === 'string') tabColor = s.tabColor;
+    if (typeof s.showOverlay === 'boolean') showOverlay = s.showOverlay;
   } catch { /* ignore */ }
 }
 
 function saveSettings() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ enabled, delay }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ enabled, delay, tabColor, showOverlay }));
   } catch { /* ignore */ }
 }
 
@@ -28,6 +30,8 @@ const DELAY_OPTIONS = [1, 3, 5, 10];
 
 let enabled = true;
 let delay = 1;
+let tabColor = 'gray'; // 'gray' | 'black' | 'white' | 'blue' | 'red'
+let showOverlay = true;
 let pluginState: PluginState = 'idle';
 let countdownSeconds = 0;
 let countdownInterval: ReturnType<typeof setInterval> | null = null;
@@ -135,6 +139,7 @@ function isFailedOverview(overview: any): boolean {
 function startPolling() {
   if (pollInterval) return;
   let pendingCountdown: ReturnType<typeof setTimeout> | null = null;
+  let initialized = false;
 
   const onOverview = (overview: any) => {
     if (!enabled) return;
@@ -143,6 +148,12 @@ function startPolling() {
     const isPaused = isPausedOverview(overview);
     const state: string = overview?.update_state ?? '';
     const isUninstalling = UNINSTALL_STATES.has(state);
+
+    if (!initialized) {
+      initialized = true;
+      wasDownloading = isActive;
+      return;
+    }
 
     if (isUninstalling) {
       if (pendingCountdown) { clearTimeout(pendingCountdown); pendingCountdown = null; }
@@ -234,6 +245,96 @@ function getDownloadInfo() {
   return { appId, appName, overallPercent, iconUrl };
 }
 
+const TAB_COLORS: { id: string; label: string; bg: string; bgHover: string; arrow: string }[] = [
+  { id: 'gray',  label: 'Gray',   bg: 'rgba(255,255,255,0.12)', bgHover: 'rgba(255,255,255,0.22)', arrow: 'rgba(255,255,255,0.7)' },
+  { id: 'black', label: 'Black',  bg: 'rgba(0,0,0,0.75)',       bgHover: 'rgba(0,0,0,0.9)',        arrow: 'rgba(255,255,255,0.7)' },
+  { id: 'white', label: 'White',  bg: 'rgba(255,255,255,0.85)', bgHover: 'rgba(255,255,255,1)',    arrow: 'rgba(0,0,0,0.7)'       },
+  { id: 'blue',  label: 'Blue',   bg: 'rgba(76,158,255,0.7)',   bgHover: 'rgba(76,158,255,0.9)',   arrow: 'rgba(255,255,255,0.9)' },
+  { id: 'red',   label: 'Red',    bg: 'rgba(224,82,82,0.7)',    bgHover: 'rgba(224,82,82,0.9)',    arrow: 'rgba(255,255,255,0.9)' },
+];
+
+function getTabColor() {
+  return TAB_COLORS.find(c => c.id === tabColor) ?? TAB_COLORS[0];
+}
+
+const AutoShutdownSettings = () => {
+  const { useState } = (window as any).SP_REACT as typeof import('react');
+  const [color, setColor] = useState(tabColor);
+  const [ddOpen, setDdOpen] = useState(false);
+  const [overlay, setOverlay] = useState(showOverlay);
+
+  const handleColor = (id: string) => {
+    tabColor = id;
+    setColor(id);
+    setDdOpen(false);
+    saveSettings();
+  };
+
+  const toggleOverlay = () => {
+    showOverlay = !showOverlay;
+    setOverlay(showOverlay);
+    saveSettings();
+  };
+
+  const current = TAB_COLORS.find(c => c.id === color) ?? TAB_COLORS[0];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0' }}>
+        <div>
+          <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: 500 }}>Button Color</div>
+          <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 3 }}>Color of the side tab button</div>
+        </div>
+      <div style={{ position: 'relative' }}>
+        <button onClick={() => setDdOpen(o => !o)} style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.15)',
+          background: 'rgba(255,255,255,0.07)', cursor: 'pointer',
+          color: '#fff', fontSize: 12, minWidth: 100,
+          justifyContent: 'space-between',
+        }}>
+          <span>{current.label}</span>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <polyline points={ddOpen ? "1,7 5,3 9,7" : "1,3 5,7 9,3"} stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+        {ddOpen && (
+          <div style={{
+            position: 'absolute', right: 0, top: '110%', zIndex: 9999,
+            background: '#2a3547', border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 6, overflow: 'hidden', minWidth: 120,
+          }}>
+            {TAB_COLORS.map(c => (
+              <button key={c.id} onClick={() => handleColor(c.id)} style={{
+                display: 'block', width: '100%', padding: '8px 14px', border: 'none',
+                background: c.id === color ? 'rgba(255,255,255,0.1)' : 'transparent',
+                color: c.id === color ? '#fff' : 'rgba(255,255,255,0.7)',
+                fontSize: 12, cursor: 'pointer', textAlign: 'left',
+                fontWeight: c.id === color ? 600 : 400,
+              }}>{c.label}</button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 4 }}>
+        <div>
+          <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: 500 }}>Background Overlay</div>
+          <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 3 }}>Dim the screen when panel is open</div>
+        </div>
+        <button onClick={toggleOverlay} style={{
+          width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', flexShrink: 0,
+          background: overlay ? 'linear-gradient(135deg,#55cc55,#2a8a2a)' : 'rgba(255,255,255,0.15)',
+          position: 'relative', transition: 'background 0.2s',
+        }}>
+          <span style={{ position: 'absolute', top: 4, width: 16, height: 16, borderRadius: '50%', background: 'white', transition: 'left 0.2s', left: overlay ? 24 : 4 }}/>
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const AutoShutdownWidget = () => {
   const { useState, useEffect } = (window as any).SP_REACT as typeof import('react');
   const [open, setOpen]               = useState(false);
@@ -270,36 +371,37 @@ const AutoShutdownWidget = () => {
   const handleCancel = () => { abortCountdown(); setInCountdown(false); };
 
   const { appId, appName, overallPercent, iconUrl } = dlInfo;
+  const tc = getTabColor();
 
   return (
     <>
-      <button onClick={() => setOpen(o => !o)} title="Auto Shutdown" style={{
-        position: 'fixed', top: 67, right: 58, width: 30, height: 28.05,
-        borderRadius: 0, border: 'none', cursor: 'pointer', zIndex: 1,
-        background: open ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.10)',
+      {/* Tab trigger — moves to right edge of panel when open */}
+      <button onClick={() => setOpen(o => !o)} style={{
+        position: 'fixed', top: '50%',
+        left: open ? 360 : 0,
+        transform: 'translateY(-50%)',
+        width: 20, height: 48,
+        borderRadius: '0 6px 6px 0',
+        border: 'none', cursor: 'pointer', zIndex: 1001,
+        background: open ? tc.bgHover : tc.bg,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'background 0.15s',
+        transition: 'left 0.25s cubic-bezier(0.4,0,0.2,1), background 0.15s',
       }}>
-        <svg width="18" height="18" viewBox="0 0 64 64" fill="none">
-          <rect x="4" y="6" width="56" height="38" rx="3" fill="none" stroke="#ddd" strokeWidth="3"/>
-          <rect x="8" y="10" width="48" height="30" rx="1" fill="rgba(255,255,255,0.06)"/>
-          <circle cx="32" cy="25" r="7" stroke="#ddd" strokeWidth="2.5" fill="none"/>
-          <line x1="32" y1="18" x2="32" y2="23" stroke="#ddd" strokeWidth="2.5" strokeLinecap="round"/>
-          <rect x="28" y="44" width="8" height="6" rx="1" fill="#aaa"/>
-          <rect x="18" y="50" width="28" height="4" rx="1" fill="#aaa"/>
+        <svg width="10" height="14" viewBox="0 0 10 14" fill="none">
+          <polyline points={open ? "7,2 3,7 7,12" : "3,2 7,7 3,12"} stroke={tc.arrow} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
 
-      {open && (
-        <>
-          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'rgba(0,0,0,0.6)' }}/>
-          <div style={{
-            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-            zIndex: 9999, width: 340,
-            background: '#0d0d0d',
-            border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
-            boxShadow: 'none', overflow: 'hidden',
-          }}>
+      {/* Slide-in panel from the left */}
+      <div style={{
+        position: 'fixed', top: '50%', left: 20, transform: `translateY(-50%) translateX(${open ? '0' : '-110%'})`,
+        zIndex: 999, width: 340,
+        background: '#0d0d0d',
+        border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0 12px 12px 0',
+        overflow: 'hidden',
+        transition: 'transform 0.25s cubic-bezier(0.4,0,0.2,1)',
+        pointerEvents: open ? 'all' : 'none',
+      }}>
             <div style={{
               padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -402,8 +504,7 @@ const AutoShutdownWidget = () => {
               </div>
             </div>
           </div>
-        </>
-      )}
+      {open && showOverlay && <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 998, background: 'rgba(0,0,0,0.4)' }}/>}
     </>
   );
 };
@@ -425,7 +526,7 @@ export default definePlugin(() => {
   return {
     title: 'Auto Shutdown',
     icon: <></>,
-    content: undefined,
+    content: <AutoShutdownSettings />,
     onDismount() {
       stopPolling();
       if (countdownInterval) clearInterval(countdownInterval);
