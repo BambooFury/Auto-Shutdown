@@ -4,7 +4,7 @@ A Millennium plugin that automatically shuts down your PC after Steam game downl
 
 ## Features ✨
 
-<table><tr><td><img src="example.png"/></td><td><img src="auto-shutdown.png"/></td></tr></table>
+![screenshot](example.png)
 
 The plugin adds a **tab button on the left side** of the Downloads page, vertically centered on the screen. Click the arrow to slide open the Auto Shutdown panel. The button moves to the right edge of the panel when open. You can customize the button color and overlay behavior in **Steam → Settings → Plugin Settings → Auto Shutdown**.
 
