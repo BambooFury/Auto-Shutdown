@@ -4,7 +4,7 @@ A Millennium plugin that automatically shuts down your PC after Steam game downl
 
 ## Features ✨
 
-![example](example.png)
+<table><tr><td><img src="example.png"/></td><td><img src="auto-shutdowm.png"/></td></tr></table>
 
 - Monitors active Steam downloads in real time
 - Shows a toast notification when downloads finish
