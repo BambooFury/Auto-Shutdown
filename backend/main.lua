@@ -5,6 +5,10 @@ function execute_shutdown()
     os.execute("shutdown /s /t 0")
 end
 
+function execute_sleep()
+    os.execute("powershell -Command \"Add-Type -Assembly System.Windows.Forms; [System.Windows.Forms.Application]::SetSuspendState('Suspend', $false, $false)\"")
+end
+
 function cancel_shutdown()
     os.execute("shutdown /a")
 end
